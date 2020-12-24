@@ -54,7 +54,7 @@ Rotation of the **second qubit** of [![](https://latex.codecogs.com/svg.latex?2\
 </p>
 
 Measurement of the **first qubit** along axis **a**<br>
-Rotation of the **second qubit** of [![](https://latex.codecogs.com/svg.latex?\theta)](#) and measure along axis **c** 
+Rotation of the **second qubit** of [![](https://latex.codecogs.com/svg.latex?\theta)](#) and measure along axis **c**
 
 <p align="center">
   <img src="images/cb-axes.png" width="300">
@@ -64,7 +64,7 @@ Rotation of the **first qubit** of [![](https://latex.codecogs.com/svg.latex?\th
 Rotation of the **second qubit** of [![](https://latex.codecogs.com/svg.latex?2\theta)](#) and measure along axis **b**
 
 ## Analysis
-By plotting two functions as a function of the angle, it is possible to observe in which regions the inequality is satisfied and in which it is violated.
+By plotting two functions as a function of the angle, it is possible to observe in which regions the inequality is satisfied (over 0) and in which it is violated (under 0).
 
 1. Local quantum simulation
 
