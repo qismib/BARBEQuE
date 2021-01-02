@@ -7,23 +7,25 @@
 # Organization: https://github.com/qismib                 #
 ###########################################################
 
-%matplotlib inline
-
 import os
 import json
 import numpy as np
-import matplotlib.pyplot as plt
 
 from qiskit import *
 from qiskit.visualization import *
 from qiskit.tools.monitor import *
-from scipy.optimize import curve_fit
 
 # Debug Mode
 DEBUG_MODE = False
 
 # Set IBMQ API Token
-provider = IBMQ.enable_account('MY_API_TOKEN')
+IBMQ.save_account('YOUR_API_KEY', overwrite=True)
+
+provider = IBMQ.load_account()
+
+# Fitting function with 4 params
+def fitFunc(x, a, b, c):
+    return a*(np.sin(b*x)**2)+a*(np.sin(b*x)**2)-c*(np.sin(x)**2)
 
 # Load all backends
 def loadBackends():
@@ -37,6 +39,8 @@ def loadBackends():
 
     if DEBUG_MODE:
         print("[INFO]: Backends have been loaded.")
+
+    return None
 
 # Store all data in JSON format
 def storeData(name, data):
@@ -71,9 +75,10 @@ def storeData(name, data):
         if DEBUG_MODE:
             print("[INFO]: %s.json has been created." % name)
 
-# Read data saved
-def readingData(name):
+    return None
 
+# Read data saved
+def loadData(name):
     filename = "data/%s.json" % name
 
     if os.path.exists(filename):
@@ -88,143 +93,138 @@ def readingData(name):
         if DEBUG_MODE:
             print("[ERROR]: Filename %s.json doesn't exist." % name)
 
+    return None
 
-# Bell's Experiment that create a quantum circuit, run it on a backends and store the data
-def bellExperiment(name, angles, launcher):
-
-    # Define 2 quantum and 2 classical bit
-    circ = QuantumCircuit(2,2)
-
-    # Starting from the state |1> for both qubits
-    circ.x(0)
-    circ.x(1)
-
-    # Creating an entangled state
-    circ.h(0)
-    circ.cx(0,1)
-
-    # Doing a few rotations if required
-    for index, theta in enumerate(angles):
-        if (theta != 0) :
-            circ.rx(theta, index)
-
-    # Measuring
-    circ.measure(range(2),range(2))
+# Bell's Experiment that create quantum circuit, run it on a backends and store the data
+def bellExperiment(name, angles, launcher, mode):
 
     # Running the circuit on a backend
-    if (launcher['backend'] == 'qasm_simulator') :
-        backend = Aer.get_backend('qasm_simulator')
-    else :
-        backend = provider.get_backend(launcher['backend'])
+    def runCircuit():
 
-    job = execute(circ, backend, shots=launcher['shots'])
-    counts = job.result().get_counts(circ)
+        if launcher['backend'] == 'qasm_simulator':
+            backend = Aer.get_backend('qasm_simulator')
+        else:
+            backend = provider.get_backend(launcher['backend'])
 
-    if DEBUG_MODE:
-        print("[INFO]: Quantum Circuit has been executed.")
+        job = execute(circ, backend, shots = launcher['shots'])
+        counts = job.result().get_counts(circ)
 
-    # Parsing if all index are setted and normalizing data
-    indexNames = ["00", "01", "10", "11"]
+        return counts
 
-    for index in indexNames:
-        if index not in counts :
-            counts[index] = 0
-            if DEBUG_MODE:
-                print("[INFO]: %s has been created." % index)
+    # Mode 0: 2 qubits
+    if mode == 0:
 
-        # Normalizing
-        counts[index] = counts[index]/launcher['shots']
+        circ = QuantumCircuit(2,2)
 
-    # Storing data
-    storeData(name, counts)
+        # Starting from the state |1> for both qubits
+        circ.x(0)
+        circ.x(1)
 
-# Compute probabilities pAB, pAC, pCB
-def computeProb(settings) :
+        # Creating an entangled state
+        circ.h(0)
+        circ.cx(0,1)
 
-    angles = settings['angles']
-    backend = settings['launcher']['backend']
-    shots = settings['launcher']['shots']
+        # Doing a few rotations if required
+        for index, theta in enumerate(angles):
+            if (theta != 0) :
+                circ.rx(theta, index)
 
-    # Executing
-    for i, angle in enumerate(angles) :
-        bellExperiment("%s_%sd%ss_pAB" % (backend, len(angles), shots), [0, 2*angle], settings['launcher'])
-        bellExperiment("%s_%sd%ss_pAC" % (backend, len(angles), shots), [0, angle], settings['launcher'])
-        bellExperiment("%s_%sd%ss_pCB" % (backend, len(angles), shots), [angle, 2*angle], settings['launcher'])
+        # Measuring
+        circ.measure(range(2),range(2))
 
-    if DEBUG_MODE:
-        print("[INFO]: The compute has been completed successfully.")
+        # Run it
+        counts = runCircuit()
 
-# Fitting function with 4 params
-def fitFunc(x, a, b, c) :
-    return a*(np.sin(b*x)**2)+a*(np.sin(b*x)**2)-c*(np.sin(x)**2)
+        if DEBUG_MODE:
+            print("[INFO]: Quantum Circuit has been executed.")
 
-# Analyze the data
-def analyzer(settings) :
+        # Parsing if all index are setted and normalizing data
+        indexNames = ["00", "01", "10", "11"]
 
-    data, pAB_00, pAC_00, pCB_00 = [], [], [], []
+        for index in indexNames:
+            if index not in counts:
+                counts[index] = 0
+                if DEBUG_MODE:
+                    print("[INFO]: %s has been created." % index)
 
-    angles = settings['angles']
-    backend = settings['launcher']['backend']
-    shots = settings['launcher']['shots']
+            # Normalizing
+            counts[index] = counts[index]/launcher['shots']
 
-    # Reading data
-    pAB = readingData("%s_%sd%ss_pAB" % (backend, len(angles), shots))
-    pAC = readingData("%s_%sd%ss_pAC" % (backend, len(angles), shots))
-    pCB = readingData("%s_%sd%ss_pCB" % (backend, len(angles), shots))
+        # Storing data
+        storeData("mode_0/%s" % name, counts)
 
-    if DEBUG_MODE:
-        print("[INFO]: All data has been loaded.")
+    # Mode 1-2: 4 qubits in parallel (same angle for each entangled state or half angles for each entangled state)
+    elif mode == 1 or mode == 2:
 
-    # Evaluating only 00
-    for i, angle in enumerate(angles) :
-        pAB_00.append(pAB[i]['00'])
-        pAC_00.append(pAC[i]['00'])
-        pCB_00.append(pCB[i]['00'])
+        circ = QuantumCircuit(4,4)
 
-        data.append(pAC_00[i] + pCB_00[i] - pAB_00[i])
+        # Starting from the state |1> for all qubits
+        circ.x(0)
+        circ.x(1)
+        circ.x(2)
+        circ.x(3)
 
-    if DEBUG_MODE:
-        print("[INFO]: P(00) has been evaluated.")
+        # Creating entangled states
+        circ.h(0)
+        circ.cx(0,1)
+        circ.h(2)
+        circ.cx(2,3)
 
-    # Plotting figure
-    fig = plt.figure()
+        # Doing a few rotations if required
+        # Mode 1 => Same angles
+        if mode == 1:
+            for index, theta in enumerate(angles):
+                if (theta != 0) :
+                    circ.rx(theta, index)
+                    circ.rx(theta, index+2)
+        # Mode 2 => Half angles for each entangled state
+        else:
+            print("[WORK IN PROGRESS]: Need to find a solution to split angles")
 
-    # Const function (Classical limit)
-    x = np.arange(angles[-1]*180/np.pi)
-    plt.plot(x, x*0)
+        # Measuring
+        circ.measure(range(4),range(4))
 
-    # Data distribution (Data processed)
-    plt.plot(angles*180/np.pi, data, 'ro', markersize = 1, label = "experimental-data")
+        # Run it
+        counts = runCircuit()
 
-    if DEBUG_MODE:
-        print("[INFO]: All data has been plotted.")
+        if DEBUG_MODE:
+            print("[INFO]: Quantum Circuit has been executed.")
 
-    # Initial guess (Theoretical value)
-    initial_guess = [0.5, 0.5, 0.5]
+        # Parsing if all index are setted and normalizing data
+        indexNames = ["0000", "0001", "0010", "0011", "0100", "0101", "0110", "0111", "1000", "1001", "1010", "1011", "1100", "1101", "1110", "1111"]
 
-    # Fitting data
-    popt, pcov = curve_fit(fitFunc, angles, data, initial_guess)
-    plt.plot(angles*180/np.pi, fitFunc(angles, *popt), 'y', label='fit-params: a=%5.2f, b=%5.2f, c=%5.2f' % tuple(popt))
+        for index in indexNames:
+            if index not in counts:
+                counts[index] = 0
+                if DEBUG_MODE:
+                    print("[INFO]: %s has been created." % index)
 
-    if DEBUG_MODE:
-        print("[INFO]: Fit has been done.")
+            # Normalizing
+            counts[index] = counts[index]/launcher['shots']
 
-    # Labelling axes
-    plt.xlabel('Angle [degree]')
-    plt.ylabel('Probability')
+        countsC1 = {
+            "00": counts["0000"] + counts["0100"] + counts["1000"] + counts["1100"],
+            "01": counts["0001"] + counts["0101"] + counts["1001"] + counts["1101"],
+            "10": counts["0010"] + counts["0110"] + counts["1010"] + counts["1110"],
+            "11": counts["0011"] + counts["0111"] + counts["1011"] + counts["1111"]
+        }
 
-    # Plotting graph
-    plt.title("Bell's inequality on %s" % backend)
-    plt.legend(loc='best')
-    plt.show()
+        countsC2 = {
+            "00": counts["0000"] + counts["0001"] + counts["0010"] + counts["0011"],
+            "01": counts["0100"] + counts["0101"] + counts["0110"] + counts["0111"],
+            "10": counts["1000"] + counts["1001"] + counts["1010"] + counts["1011"],
+            "11": counts["1100"] + counts["1101"] + counts["1110"] + counts["1111"]
+        }
 
-    # Print the plot
-    fig.savefig("plots/%s_%sd%ss.pdf" % (backend, len(angles), shots) , bbox_inches='tight')
+        # Storing data
+        if mode == 1:
+            storeData("mode_1/%s_c1" % name, countsC1)
+            storeData("mode_1/%s_c2" % name, countsC2)
+        else:
+            storeData("mode_2/%s_c1" % name, countsC1)
+            storeData("mode_2/%s_c2" % name, countsC2)
 
-    if DEBUG_MODE:
-        print("[INFO]: Plot has been printed.")
-        print("[INFO]: Everything works. ")
+    else:
+        print("[ERROR]: 'mode' can assume only the values 0, 1 and 2")
 
-# loadBackends()
-# computeProb({'angles': np.linspace(0, 2*np.pi, 100), 'launcher': {'backend': 'qasm_simulator', 'shots': 10000}})
-# analyzer({'angles': np.linspace(0, 2*np.pi, 100), 'launcher': {'backend': 'qasm_simulator', 'shots': 10000}})
+    return None
