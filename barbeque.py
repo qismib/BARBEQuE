@@ -177,9 +177,12 @@ def bellExperiment(name, angles, launcher, mode):
                 if (theta != 0) :
                     circ.rx(theta, index)
                     circ.rx(theta, index+2)
-        # Mode 2 => Half angles for each entangled state
+        # Mode 2 => C1 use theta, C2 use theta+0.5 (degrees)
         else:
-            print("[WORK IN PROGRESS]: Need to find a solution to split angles")
+            for index, theta in enumerate(angles):
+                if (theta != 0) :
+                    circ.rx(theta, index)
+                    circ.rx(theta+(0.5*np.pi/180), index+2)
 
         # Measuring
         circ.measure(range(4),range(4))
