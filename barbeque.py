@@ -1,5 +1,4 @@
-# pylint: disable=unused-wildcard-import, method-hidden
-# pylint: enable=too-many-lines
+# pyright: reportUndefinedVariable=false
 
 import os
 import json
@@ -9,20 +8,20 @@ import matplotlib.pyplot as plt
 from qiskit import *
 from qiskit.visualization import * 
 from qiskit.tools.monitor import *
-from itertools import product, chain 
+from itertools import product
 from scipy.optimize import least_squares
 from matplotlib.ticker import FormatStrFormatter
 
 # Fitting function with 4 params
-def fitFunc(x, a, b, c):
+def fit_func(x, a, b, c):
     return a*(np.sin(b*x)**2)+a*(np.sin(b*x)**2)-c*(np.sin(x)**2)
 
 # Residues function with 4 params
 def residues(x, t, y):
-    return fitFunc(t, x[0], x[1], x[2])-y
+    return fit_func(t, x[0], x[1], x[2])-y
 
 # Storing data
-def storeData(name, data):
+def store_data(name, data):
 
     filename = "data/%s.json" % name
 
@@ -31,27 +30,27 @@ def storeData(name, data):
         with open(filename, "r+") as file:
 
             # Load the old data
-            oldData = json.load(file)
+            old_data = json.load(file)
 
             # Add the new data
-            oldData.append(data)
+            old_data.append(data)
             file.seek(0)
 
             # Update JSON file
-            json.dump(oldData, file, indent = 4)
+            json.dump(old_data, file, indent = 4)
 
     # If it doesn't exist, create a JSON file
     else :
-        jsonData = []
-        jsonData.append(data)
+        json_data = []
+        json_data.append(data)
 
         with open(filename, 'w') as file:
-            json.dump(jsonData, file, indent = 4)
+            json.dump(json_data, file, indent = 4)
 
     return None
 
 # Loading Data
-def loadData(name):
+def load_data(name):
     filename = 'data/%s.json' % name
 
     # If it exists, load data
@@ -62,14 +61,15 @@ def loadData(name):
             return data
     else:
         print('[ERROR]: Check pathname %s' % filename)
+
     return None
 
 # Class to create Quantum Circuits, running them,...
 class BellExperiment:
 
-    def __init__(self, nQubit, cnot, backend, shots, mode, prob, angle):
+    def __init__(self, n_qubit, cnot, backend, shots, mode, prob, angle):
 
-        self.nQubit = nQubit
+        self.n_qubit = n_qubit
         self.cnot = cnot
         self.backend = backend
         self.shots = shots
@@ -77,11 +77,11 @@ class BellExperiment:
         self.prob = prob
         self.angle = angle
 
-        self.createQC()
+        self.create_qc()
 
-    def createQC(self):
+    def create_qc(self):
 
-        self.circ = QuantumCircuit(self.nQubit, self.nQubit)
+        self.circ = QuantumCircuit(self.n_qubit, self.n_qubit)
 
         # Set all qubits to the state |1>
         for qubit in self.cnot:
@@ -130,12 +130,12 @@ class BellExperiment:
 
         # Measuring
         for i in range(len(self.cnot)):
-            self.circ.measure(self.cnot[i], self.cnot[i]) # pylint: disable=no-member
+            self.circ.measure(self.cnot[i], self.cnot[i])
 
         return None
 
     # Running the circuit on a backend
-    def runQC(self):
+    def run_qc(self):
 
         # Local simulation
         if self.backend == 'qasm_simulator':
@@ -152,13 +152,13 @@ class BellExperiment:
         return None
     
     # Parsing if all index are setted and normalizing data
-    def parsingData(self):
+    def parsing_data(self):
 
         # Get all possibile combinations of indexes
-        indexNames = self.getIndexes()
+        index_names = self.get_indexes()
 
         # Parsing and Normalizing
-        for index in indexNames:
+        for index in index_names:
             if index not in self.counts:
                 self.counts[index] = 0
             self.counts[index] /= self.shots
@@ -166,29 +166,29 @@ class BellExperiment:
         # Create obj and name
         if len(self.cnot) == 1:
 
-            name = 'mode_%s/%s_%sq_%s%scnot_360a_%ss_p%s' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.shots, self.prob)
+            name = 'mode_%s/%s_%sq_%s%scnot_360a_%ss_p%s' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.shots, self.prob)
 
-            if self.nQubit == 2:
+            if self.n_qubit == 2:
                 # Storing data
-                storeData(name, self.counts)
+                store_data(name, self.counts)
             else:
                 tmp = {
-                    # Switch from dimension nQubit to dimension 2
-                    # Remember that qubits are q4q3q2q1q0 NOT q0q1q2q3q4 (for nQubits = 5)
+                    # Switch from dimension n_qubit to dimension 2
+                    # Remember that qubits are q4q3q2q1q0 NOT q0q1q2q3q4 (for n_qubits = 5)
                     "00": sum([kel[1] for kel in self.counts.items() if self.addcts(kel[0], self.cnot[0][0], 0, self.cnot[0][1], 0)]),
                     "01": sum([kel[1] for kel in self.counts.items() if self.addcts(kel[0], self.cnot[0][0], 1, self.cnot[0][1], 0)]),
                     "10": sum([kel[1] for kel in self.counts.items() if self.addcts(kel[0], self.cnot[0][0], 0, self.cnot[0][1], 1)]),
                     "11": sum([kel[1] for kel in self.counts.items() if self.addcts(kel[0], self.cnot[0][0], 1, self.cnot[0][1], 1)])
                 }
                 # Storing data
-                storeData(name, tmp)
+                store_data(name, tmp)
         else:
-            name1 = 'mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_p%s_c1' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots, self.prob)
-            name2 = 'mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_p%s_c2' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots, self.prob)
+            name1 = 'mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_p%s_c1' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots, self.prob)
+            name2 = 'mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_p%s_c2' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots, self.prob)
             
             tmpc1 = {
-                # Switch from dimension nQubit to dimension 2
-                # Remember that qubits are q4q3q2q1q0 NOT q0q1q2q3q4 (for nQubits = 5)
+                # Switch from dimension n_qubit to dimension 2
+                # Remember that qubits are q4q3q2q1q0 NOT q0q1q2q3q4 (for n_qubits = 5)
                 "00": sum([kel[1] for kel in self.counts.items() if self.addcts(kel[0], self.cnot[0][0], 0, self.cnot[0][1], 0)]),
                 "01": sum([kel[1] for kel in self.counts.items() if self.addcts(kel[0], self.cnot[0][0], 1, self.cnot[0][1], 0)]),
                 "10": sum([kel[1] for kel in self.counts.items() if self.addcts(kel[0], self.cnot[0][0], 0, self.cnot[0][1], 1)]),
@@ -196,8 +196,8 @@ class BellExperiment:
             }
 
             tmpc2 = {
-                # Switch from dimension nQubit to dimension 2
-                # Remember that qubits are q4q3q2q1q0 NOT q0q1q2q3q4 (for nQubits = 5)
+                # Switch from dimension n_qubit to dimension 2
+                # Remember that qubits are q4q3q2q1q0 NOT q0q1q2q3q4 (for n_qubits = 5)
                 "00": sum([kel[1] for kel in self.counts.items() if self.addcts(kel[0], self.cnot[1][0], 0, self.cnot[1][1], 0)]),
                 "01": sum([kel[1] for kel in self.counts.items() if self.addcts(kel[0], self.cnot[1][0], 1, self.cnot[1][1], 0)]),
                 "10": sum([kel[1] for kel in self.counts.items() if self.addcts(kel[0], self.cnot[1][0], 0, self.cnot[1][1], 1)]),
@@ -205,40 +205,40 @@ class BellExperiment:
             }
 
             # Storing data
-            storeData(name1, tmpc1)
-            storeData(name2, tmpc2)
+            store_data(name1, tmpc1)
+            store_data(name2, tmpc2)
 
         return None
 
     # Getting all index combination
-    def getIndexes(self):
-        perm = product(['0', '1'], repeat = self.nQubit)
-        possibleBin = []
+    def get_indexes(self):
+        perm = product(['0', '1'], repeat = self.n_qubit)
+        possible_bin = []
 
         for i in list(perm):  
-            myBin = ''.join(i) 
-            possibleBin.append(myBin)
+            my_bin = ''.join(i) 
+            possible_bin.append(my_bin)
 
-        return possibleBin
+        return possible_bin
 
-    # Switch from dimension nQubit to dimension 2
+    # Switch from dimension n_qubit to dimension 2
     def addcts(self, keystr, x, xv, y, yv):
-        if (self.nQubit-1-x) > len(keystr) or (self.nQubit-1-y) > len(keystr):
+        if (self.n_qubit-1-x) > len(keystr) or (self.n_qubit-1-y) > len(keystr):
             return False
-        if keystr[self.nQubit-1-x] == str(xv) and keystr[self.nQubit-1-y] == str(yv):
+        if keystr[self.n_qubit-1-x] == str(xv) and keystr[self.n_qubit-1-y] == str(yv):
             return True
         return False
 
 # Class to analyzer data with plot, fit, residuals,...
 class Analyzer():
-    def __init__(self, nQubit, cnot, backend, shots, mode):
-        self.nQubit = nQubit
+    def __init__(self, n_qubit, cnot, backend, shots, mode):
+        self.n_qubit = n_qubit
         self.cnot = cnot
         self.backend = backend
         self.shots = shots
         self.mode = mode
     
-    def createPlot(self):
+    def create_plot(self):
         # Plotting figure
         self.fig = plt.figure(figsize = (9, 7.2))
         plt.frame = self.fig.add_axes((0.2, 0.4, 0.75, 0.6))
@@ -253,7 +253,57 @@ class Analyzer():
 
         # Validity Limit
         plt.axhline(0, linewidth=1, linestyle="-.", color="black", label="validity-limit")
+        plt.axvspan(0, 90, color='lightgrey', alpha=0.5, lw=0)
+        plt.axvspan(270, 360, color='lightgrey', alpha=0.5, lw=0)
+
+        if self.mode == 0:
+            angles = np.linspace(0, 360, 360)
+
+            data_array = np.array(self.data[0])
+            pos1 = np.where(data_array[:180]<0)[0]
+            pos2 = np.where(data_array[180:]<0)[0] + 180
+
+            plt.axvline(angles[pos1][0], color='#FF5600', ls='--')
+            plt.axvline(angles[pos1][-1], color='#FF5600', ls='--')
+
+            plt.axvline(angles[pos2][0], color='#FF5600', ls='--')
+            plt.axvline(angles[pos2][-1], color='#FF5600', ls='--')
         
+        else:
+            angles = np.linspace(0, 360, 360)
+
+            data_array1 = np.array(self.data[0])
+            pos1 = np.where(data_array1[:180]<0)[0]
+            pos2 = np.where(data_array1[180:]<0)[0] + 180
+
+            try:
+                plt.axvline(angles[pos1][0], color='#FF5600', ls='--')
+                plt.axvline(angles[pos1][-1], color='#FF5600', ls='--')
+            except:
+                pass
+            
+            try:
+                plt.axvline(angles[pos2][0], color='#FF5600', ls='--')
+                plt.axvline(angles[pos2][-1], color='#FF5600', ls='--')
+            except:
+                pass
+
+            data_array2 = np.array(self.data[1])
+            pos3 = np.where(data_array2[:180]<0)[0]
+            pos4 = np.where(data_array2[180:]<0)[0] + 180
+
+            try:
+                plt.axvline(angles[pos3][0], color='#2419B2', ls='--')
+                plt.axvline(angles[pos3][-1], color='#2419B2', ls='--')
+            except:
+                pass
+
+            try:
+                plt.axvline(angles[pos4][0], color='#2419B2', ls='--')
+                plt.axvline(angles[pos4][-1], color='#2419B2', ls='--')
+            except:
+                pass
+
         # Setting the main frame
         plt.frame.get_yaxis().set_label_coords(-0.09, 0.5)
         plt.frame.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
@@ -261,27 +311,27 @@ class Analyzer():
         return None
 
     # Importing all data
-    def importData(self):
+    def import_data(self):
         if self.mode == 0:
 
-            self.pAB = loadData('mode_0/%s_%sq_%s%scnot_360a_%ss_pAB' % (self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.shots))
-            self.pAC = loadData('mode_0/%s_%sq_%s%scnot_360a_%ss_pAC' % (self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.shots))
-            self.pCB = loadData('mode_0/%s_%sq_%s%scnot_360a_%ss_pCB' % (self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.shots))
+            self.pAB = load_data('mode_0/%s_%sq_%s%scnot_360a_%ss_pAB' % (self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.shots))
+            self.pAC = load_data('mode_0/%s_%sq_%s%scnot_360a_%ss_pAC' % (self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.shots))
+            self.pCB = load_data('mode_0/%s_%sq_%s%scnot_360a_%ss_pCB' % (self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.shots))
 
         elif self.mode == 1 or self.mode == 2:
 
-            self.pAB_c1 = loadData('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pAB_c1' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
-            self.pAC_c1 = loadData('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pAC_c1' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
-            self.pCB_c1 = loadData('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pCB_c1' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
+            self.pAB_c1 = load_data('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pAB_c1' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
+            self.pAC_c1 = load_data('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pAC_c1' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
+            self.pCB_c1 = load_data('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pCB_c1' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
 
-            self.pAB_c2 = loadData('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pAB_c2' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
-            self.pAC_c2 = loadData('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pAC_c2' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
-            self.pCB_c2 = loadData('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pCB_c2' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
+            self.pAB_c2 = load_data('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pAB_c2' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
+            self.pAC_c2 = load_data('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pAC_c2' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
+            self.pCB_c2 = load_data('mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss_pCB_c2' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots))
 
         return None
 
     # Evaluating a specific probability
-    def evaluateProb(self, p):
+    def evaluate_prob(self, p):
         if self.mode == 0:
 
             self.data, pAB_00, pAC_00, pCB_00 = [[]], [], [], []
@@ -314,7 +364,7 @@ class Analyzer():
         return None
 
     # Plotting data
-    def plotData(self):
+    def plot_data(self):
         self.angles = np.linspace(0, 2*np.pi, 360)
 
         if self.mode == 0:
@@ -331,38 +381,36 @@ class Analyzer():
         return None
 
     # Fitting data
-    def fitData(self):
+    def fit_data(self):
 
         initial_guesses = np.array([0.5, 0.5, 0.5])
         
         self.fit = least_squares(residues, initial_guesses, args=(self.angles, self.data[0]), loss='cauchy', bounds=(([0,0,0], [1,1,1])))
         
         if self.mode == 0:
-            plt.plot(self.angles*180/np.pi, fitFunc(self.angles, *self.fit.x), color='#FFC500', linewidth = 1, label='robust-fit')
+            plt.plot(self.angles*180/np.pi, fit_func(self.angles, *self.fit.x), color='#FFC500', linewidth = 1, label='robust-fit')
         elif self.mode == 1:
-            plt.plot(self.angles*180/np.pi, fitFunc(self.angles, *self.fit.x), color='#FFC500', linewidth = 1, label='robust-fit c1')
+            plt.plot(self.angles*180/np.pi, fit_func(self.angles, *self.fit.x), color='#FFC500', linewidth = 1, label='robust-fit c1')
             
             self.fit2 = least_squares(residues, initial_guesses, args=(self.angles, self.data[1]), loss='cauchy', bounds=(([0,0,0], [1,1,1])))
-            plt.plot(self.angles*180/np.pi, fitFunc(self.angles, *self.fit2.x), color='#00AA72', linewidth = 1, label='robust-fit c2')
+            plt.plot(self.angles*180/np.pi, fit_func(self.angles, *self.fit2.x), color='#00AA72', linewidth = 1, label='robust-fit c2')
         else:
-            plt.plot(self.angles*180/np.pi, fitFunc(self.angles, *self.fit.x), color='#FFC500', linewidth = 1, label='robust-fit c1')
+            plt.plot(self.angles*180/np.pi, fit_func(self.angles, *self.fit.x), color='#FFC500', linewidth = 1, label='robust-fit c1')
             
             self.fit2 = least_squares(residues, initial_guesses, args=(self.angles, self.data[1]), loss='cauchy', bounds=(([0,0,0], [1,1,1])))
-            plt.plot(self.angles*180/np.pi+0.5, fitFunc(self.angles+(0.5*np.pi/180), *self.fit2.x), color='#00AA72', linewidth = 1, label='robust-fit c2')
+            plt.plot(self.angles*180/np.pi+0.5, fit_func(self.angles+(0.5*np.pi/180), *self.fit2.x), color='#00AA72', linewidth = 1, label='robust-fit c2')
 
         plt.legend(loc='upper right')
 
         return None
 
     # Plotting residuals
-    def plotResiduals(self):
+    def plot_residuals(self):
         plt.subframe = self.fig.add_axes((0.2,0.2,.75,.2))
         plt.xlabel("Angle [degree]", fontsize = 12)
         plt.ylabel("Residual", fontsize = 12)
         plt.xticks(np.arange(0,361,45))
         plt.subframe.get_yaxis().set_label_coords(-0.09,0.5)
-
-        plt.axhline(0, linewidth=1, linestyle="--", color="black")
 
         plt.plot(self.angles*180/np.pi, self.fit.fun, "x", markersize = 1.3, color='#FF5600')
 
@@ -374,21 +422,21 @@ class Analyzer():
 
         return None
 
-    def showPlot(self):
+    def show_plot(self):
         plt.show()
 
     # Saving plot in svg and pdf format
-    def printPlot(self):
+    def print_plot(self):
         if self.mode == 0:
-            self.fig.savefig('plots/mode_%s/%s_%sq_%s%scnot_360a_%ss.svg' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.shots), bbox_inches='tight')
-            self.fig.savefig('plots/mode_%s/%s_%sq_%s%scnot_360a_%ss.pdf' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.shots), bbox_inches='tight')
+            self.fig.savefig('plots/mode_%s/%s_%sq_%s%scnot_360a_%ss.svg' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.shots), bbox_inches='tight')
+            self.fig.savefig('plots/mode_%s/%s_%sq_%s%scnot_360a_%ss.pdf' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.shots), bbox_inches='tight')
         else:
-            self.fig.savefig('plots/mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss.svg' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots), bbox_inches='tight')
-            self.fig.savefig('plots/mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss.pdf' % (self.mode, self.backend, self.nQubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots), bbox_inches='tight')
+            self.fig.savefig('plots/mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss.svg' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots), bbox_inches='tight')
+            self.fig.savefig('plots/mode_%s/%s_%sq_%s%s%s%scnot_360a_%ss.pdf' % (self.mode, self.backend, self.n_qubit, self.cnot[0][0], self.cnot[0][1], self.cnot[1][0], self.cnot[1][1], self.shots), bbox_inches='tight')
         return None
 
     # Getting Residual Sum of Squares
-    def getRSS(self):
+    def get_rss(self):
         if self.mode == 0:
             return np.sum((self.fit.fun)**2)
         else:
